@@ -1,0 +1,10 @@
+# files
+__pycache__
+appsigner.py
+credentials.py
+swift-mac.spec
+swift-pc.spec
+
+# directories
+build/*
+dist/*
