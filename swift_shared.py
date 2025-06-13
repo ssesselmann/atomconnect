@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 # Shared state
-version                 = "1.1.0"
+version                 = "2.0.1"
 is_connected            = False
 connection_status       = "idle"   # default at program start
 latest_data             = {"data": {}, "timestamps": [], "cps_history": []}
