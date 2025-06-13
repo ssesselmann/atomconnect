@@ -22,14 +22,16 @@ from PySide6.QtWidgets import (
     QProgressBar, 
     QGridLayout,
     QSizePolicy,
-    QMessageBox
+    QMessageBox,
 )
 from datetime import datetime
-from PySide6.QtGui import QPixmap  
+from PySide6.QtGui import QPixmap, QFontDatabase, QFont
 from PySide6.QtCore import QTimer, Qt
 from swift_shared import latest_data
 from pathlib import Path
 from swift_2 import DisplayWindow
+from swift_shared import logging
+
 
 DEVICE_FILE = swift_shared.DATA_DIR / "device_map.json"
 
@@ -40,7 +42,7 @@ class ConnectionWindow(QWidget):
 
         # Window setup
         self.setWindowTitle("Connect to Atom Device")
-        self.setGeometry(300, 300, 420, 550)  # bumped height for content
+        self.setGeometry(300, 300, 450, 450)  
         self.setFixedWidth(420)
 
         # --- MAIN LAYOUT ---
@@ -54,6 +56,8 @@ class ConnectionWindow(QWidget):
 
         # 2) Device list
         self.device_list = QListWidget()
+        self.device_list.setFont(QFont("Courier New", 12, QFont.Bold))
+
         layout.addWidget(self.device_list)
 
         # 3) Progress bar
@@ -100,7 +104,7 @@ class ConnectionWindow(QWidget):
         logo_label.setPixmap(pixmap)
         logo_label.setScaledContents(True)
         logo_label.setAlignment(Qt.AlignCenter)
-        logo_label.setMaximumHeight(120)
+        logo_label.setMaximumHeight(160)
         layout.addWidget(logo_label)
         # --- Layout is already set on `self` by passing `self` into QVBoxLayout() ---
 
@@ -127,9 +131,8 @@ class ConnectionWindow(QWidget):
                     [{"name": n, "address": a, "sig": s} for (n, a, s) in self.found_devices],
                     f, indent=2
                 )
-            print(f"[swift_1] Saved {len(self.found_devices)} device(s) to {DEVICE_FILE}")
         except Exception as e:
-            print(f"[swift_1] Failed to save device list: {e}")
+            logging.info(f"[swift_1] Failed to save device list: {e}")
 
     def load_saved_devices(self):
         self.device_list.clear()
@@ -143,7 +146,7 @@ class ConnectionWindow(QWidget):
                         addr = d.get("address", "")
                         rssi = d.get("sig", 0)
                         short = addr.replace(":", "")[-12:].upper()
-                        self.device_list.addItem(f"{name} (...{short}) ({rssi} dB)")
+                        self.device_list.addItem(f"{name:<20}  {short:<14}  {rssi:>4} dB")
                         self.found_devices.append((name, addr, rssi))
                     self.status_label.setText(f"Loaded {len(devices)} saved device(s).")
             except Exception as e:
@@ -255,8 +258,6 @@ class ConnectionWindow(QWidget):
             if not text.endswith(']'):
                 text += ']'
             
-            print(text)
-
             # 3) parse, with a fallback repair
             try:
 
@@ -264,7 +265,7 @@ class ConnectionWindow(QWidget):
 
             except JSONDecodeError as e:
 
-                print(f"error: {e}")
+                logging.info(f"error: {e}")
 
             if not isinstance(data, list) or not data:
                 raise ValueError("No data recorded.")
