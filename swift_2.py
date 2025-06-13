@@ -5,17 +5,14 @@ PySide6 >= 6.4 required (Qt Charts ships with PySide6).
 """
 
 import json, time
+import swift_shared 
+
+from swift_shared import logging
 from pathlib import Path
-
 from PySide6.QtCore    import Qt, QTimer, QPointF
-from PySide6.QtGui     import QColor, QPainter, QFont
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QGridLayout,
-    QLabel, QFrame
-)
+from PySide6.QtGui     import QColor, QPainter, QFont, QPixmap, QFontDatabase
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QLabel, QFrame
 from PySide6.QtCharts  import QChart, QChartView, QLineSeries, QValueAxis
-
-import swift_shared                     # provides DATA_DIR
 
 DATA_DIR    = Path(swift_shared.DATA_DIR)
 LATEST_PATH = DATA_DIR / "latest_data.json"
@@ -37,9 +34,16 @@ class DisplayWindow(QWidget):
         vbox  = QVBoxLayout(self)
 
         # ——— ADD THIS HEADING ———
-        heading = QLabel("Atom Bluetooth Radiation Monitor v2.0.0")
+        heading = QLabel(f"AtomConnect - Bluetooth Radiation Monitor v{swift_shared.version}")
+        heading.setStyleSheet("""
+            background-color: rgb(0, 102, 209);
+            margin-left: 5px;
+            margin-right: 5px;
+            padding: 5px;
+            color: white;
+        """)
         font    = QFont()
-        font.setPointSize(16)
+        font.setPointSize(20)
         font.setBold(True)
         heading.setFont(font)
         heading.setAlignment(Qt.AlignCenter)
@@ -117,7 +121,7 @@ class DisplayWindow(QWidget):
         try:
             data = json.loads(LATEST_PATH.read_text())
         except Exception as e:
-            print("[UI] JSON read error:", e)
+            logging.info("[UI] JSON read error:", e)
             return
         if not data:
             return
