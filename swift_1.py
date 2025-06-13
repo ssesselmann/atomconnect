@@ -29,7 +29,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QTimer, Qt
 from swift_shared import latest_data
 from pathlib import Path
-
+from swift_2 import DisplayWindow
 
 DEVICE_FILE = swift_shared.DATA_DIR / "device_map.json"
 
@@ -94,9 +94,8 @@ class ConnectionWindow(QWidget):
         else:
             base = Path(__file__).parent
 
-        logo_path = base / "assets" / "logo.png"
-        pixmap    = QPixmap(str(logo_path))
-
+        logo_path  = base / "assets" / "logo.png"
+        pixmap     = QPixmap(str(logo_path))
         logo_label = QLabel()
         logo_label.setPixmap(pixmap)
         logo_label.setScaledContents(True)
@@ -208,11 +207,12 @@ class ConnectionWindow(QWidget):
 
     def start_connection(self):
         threading.Thread(target=swift_connect.connect_to_device, daemon=True).start()
-        #QTimer.singleShot(1500, self.launch_display_window)
 
     def launch_display_window(self):
-        swift_2_path = os.path.join(os.path.dirname(__file__), "swift_2.py")
-        subprocess.Popen([sys.executable, swift_2_path])
+        if not hasattr(self, "_display_window"):
+            from swift_2 import DisplayWindow
+            self._display_window = DisplayWindow()
+            self._display_window.show()
 
     def connect_to_selected_device(self):
         self.status_label.setText("🔌 Connecting...")
@@ -222,12 +222,6 @@ class ConnectionWindow(QWidget):
             "Connection",
             f"Connecting to {swift_shared.selected_device_name}…"
         )
-
-        # show the DisplayWindow from swift_2.py
-        if not getattr(self, "_display_launched", False):
-            self._display_window = swift_2.DisplayWindow()
-            self._display_window.show()
-            self._display_launched = True
 
     def disconnect_device(self):
         swift_shared.stop_request = True
@@ -316,8 +310,6 @@ class ConnectionWindow(QWidget):
                 "Download Failed",
                 f"Could not export data:\n{e}"
             )
-        
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
