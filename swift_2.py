@@ -4,7 +4,7 @@ swift_2_qtcharts.py  –  Qt-Charts version with 300-s moving window
 PySide6 >= 6.4 required (Qt Charts ships with PySide6).
 """
 
-import sys, json, time
+import json, time
 from pathlib import Path
 
 from PySide6.QtCore    import Qt, QTimer, QPointF
@@ -172,6 +172,7 @@ class DisplayWindow(QWidget):
 
 # ------------------------------------------------------------------- #
 if __name__ == "__main__":
+    import sys
     app = QApplication(sys.argv)
     win = DisplayWindow()
     win.show()
