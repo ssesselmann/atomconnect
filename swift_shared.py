@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 # Shared state
-version                 = "2.0.2"
+version                 = "2.0.3"
 is_connected            = False
 connection_status       = "idle"   # default at program start
 latest_data             = {"data": {}, "timestamps": [], "cps_history": []}
@@ -19,6 +19,8 @@ shutdown_request        = False    # set True to kill the whole app
 selected_device_address = ""
 selected_device_name    = ""
 scan_done               = False
+is_connected            = False
+connecting              = False
 
 
 ## Application identity
