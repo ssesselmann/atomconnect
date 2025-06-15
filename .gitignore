@@ -8,3 +8,4 @@ swift-mac.spec
 # directories
 build/*
 dist/*
+.DS_Store
