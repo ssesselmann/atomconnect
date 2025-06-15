@@ -85,7 +85,7 @@ class ConnectionWindow(QWidget):
         self.download_button.clicked.connect(self.download_csv)
         btn_grid.addWidget(self.download_button, 1, 0)
         # Disconnect
-        self.disconnect_button = QPushButton("❌ Disconnect")
+        self.disconnect_button = QPushButton("🔴 Disconnect")
         self.disconnect_button.setStyleSheet("background-color: grey; color: white; font-weight: bold;")
         self.disconnect_button.clicked.connect(self.disconnect_device)
         btn_grid.addWidget(self.disconnect_button, 1, 1)
@@ -214,8 +214,11 @@ class ConnectionWindow(QWidget):
     def launch_display_window(self):
         if not hasattr(self, "_display_window"):
             from swift_2 import DisplayWindow
-            self._display_window = DisplayWindow()
-            self._display_window.show()
+            self.display_window = DisplayWindow(on_close=self.on_display_closed)
+            self.display_window.show()
+
+    def on_display_closed(self):
+        self.display_launched = False
 
     def connect_to_selected_device(self):
         self.status_label.setText("🔌 Connecting...")
@@ -227,9 +230,12 @@ class ConnectionWindow(QWidget):
         )
 
     def disconnect_device(self):
-        swift_shared.stop_request = True
+        swift_shared.stop_request     = True
         swift_shared.shutdown_request = True
-        swift_shared.is_connected = False
+        swift_shared.is_connected     = False
+        swift_shared.connecting       = False
+        swift_shared.scan_done        = False
+        swift_shared.client           = None  # optional safety
         self.status_label.setText("🔴 Disconnected")
         QMessageBox.information(self, "Disconnected", "The device has been disconnected.")
 

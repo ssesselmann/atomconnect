@@ -19,8 +19,9 @@ LATEST_PATH = DATA_DIR / "latest_data.json"
 
 # ------------------------------------------------------------------- #
 class DisplayWindow(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, on_close=None) -> None:
         super().__init__()
+        self.on_close_callback = on_close
         self.setWindowTitle("Atom Radiation Monitor — Qt Charts")
         self.resize(960, 600)
 
@@ -29,6 +30,9 @@ class DisplayWindow(QWidget):
         self.window_sec = 300         # width of x-axis (5 min)
         self.window_pts = self.window_sec // 2   # timer = 2 s → 150 pts
         self.y_buf: list[float] = []  # ring-buffer of CPS values
+        self.counts_buf: list[int] = []
+        self.last_total_counts = 0
+
 
         # ---------- Qt Charts setup ---------------------------------
         vbox  = QVBoxLayout(self)
@@ -83,7 +87,7 @@ class DisplayWindow(QWidget):
         # ---------- numeric grid ------------------------------------
         fields = [
             ("📈 CPM", "cpm"), ("🎯 CPS", "cps"), ("☢️ Dose (mSv)", "dose"),
-            ("🔄 Dose Rate", "rate"), ("🔋 Battery (%)", "battery"),
+            ("🔄 Dose Rate (µSv/h)", "rate"), ("🔋 Battery (%)", "battery"),
             ("🌡️ Temp (°C)", "temp"), ("⏱️ Timestamp", "time"),
             ("🧮 Counts", "counts")
         ]
@@ -121,15 +125,30 @@ class DisplayWindow(QWidget):
         try:
             data = json.loads(LATEST_PATH.read_text())
         except Exception as e:
-            logging.info("[UI] JSON read error:", e)
+            logging.info(f"[UI] JSON read error:{e}")
             return
         if not data:
             return
 
-        cps = float(data.get("cps", 0) or 0)
-        data["cpm"]    = cps * 60
+        # Get total counts since start
+        total_counts = int(data.get("counts", 0) or 0)
+
+        # Calculate the number of counts in the last 2-second interval
+        delta_counts = total_counts - self.last_total_counts
+        self.last_total_counts = total_counts  # update for next time
+
+        # Append delta to buffer
+        self.counts_buf.append(delta_counts)
+        if len(self.counts_buf) > 30:  # last 60 seconds at 2s interval
+            self.counts_buf.pop(0)
+
+        # Compute true rolling CPM
+        data["cpm"] = sum(self.counts_buf)
+
+        # Update other fields
         data["status"] = "Live"
         data["time"]   = time.strftime("%H:%M:%S")
+        cps = float(data.get("cps", 0) or 0)
 
         # -------- numeric grid ------------------------------------
         for key, lbl in self.labels.items():
@@ -173,6 +192,11 @@ class DisplayWindow(QWidget):
 
 
         self.t_seconds += 2           # next sample time
+
+    def closeEvent(self, event):
+        if self.on_close_callback:
+            self.on_close_callback()
+        event.accept()
 
 # ------------------------------------------------------------------- #
 if __name__ == "__main__":

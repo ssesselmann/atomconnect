@@ -70,63 +70,83 @@ async def scan_for_devices(timeout=1, prefix="atom"):
 # ------------------Connect to Device--------------------------------
 
 def connect_to_device():
+    if swift_shared.connecting:
+        swift_shared.connection_status = "⚠️ Already connecting..."
+        return
 
+    swift_shared.connecting = True  # <—— block overlapping attempts
     swift_shared.stop_request = False
 
     address = swift_shared.selected_device_address
-
     name    = swift_shared.selected_device_name
 
     if not address:
         swift_shared.connection_status = "⏰ No address found — wait or scan again"
+        swift_shared.connecting = False
         return
 
     async def _connect():
         max_attempts = 10
-        delay_between_attempts = 2.5  
+        delay_between_attempts = 2.5
 
-        for attempt in range(1, max_attempts + 1):
-            swift_shared.connection_status = f"🔌 Attempt {attempt}/{max_attempts} to connect to {name}"
-            try:
-                client = BleakClient(address)
-                swift_shared.is_connected = False
-
-                if not await client.connect(timeout=10.0): 
-                    swift_shared.connection_status = f"❌ Attempt {attempt}: could not connect"
-                    await asyncio.sleep(delay_between_attempts)
-                    continue
-
-                await client.start_notify(NOTIFY_UUID, _handle_notification)
-                swift_shared.client = client
-                swift_shared.is_connected = True
-                swift_shared.connection_status = f"✅ Connected to {name}"
-
-                # # Keep connection alive
-                while not swift_shared.stop_request and swift_shared.is_connected:
-                    await asyncio.sleep(1)
-
-                # Clean disconnect
-                await client.stop_notify(NOTIFY_UUID)
-                await client.disconnect()
-                swift_shared.is_connected = False
-
+        try:
+            for attempt in range(1, max_attempts + 1):
                 if swift_shared.stop_request:
-                    swift_shared.connection_status = "⏹️ Disconnected"
-                    return
-                else:
-                    swift_shared.connection_status = "⚠️ Connection lost, retrying..."
+                    swift_shared.connection_status = "🔴 Disconnected by user"
+                    break
+
+                swift_shared.connection_status = f"🔌 Attempt {attempt}/{max_attempts} to connect to {name}"
+                try:
+                    client = BleakClient(address)
+                    swift_shared.is_connected = False
+
+                    if not await client.connect(timeout=10.0):
+                        swift_shared.connection_status = f"❌ Attempt {attempt}: could not connect"
+                        await asyncio.sleep(delay_between_attempts)
+                        continue
+
+                    await client.start_notify(NOTIFY_UUID, _handle_notification)
+                    swift_shared.client       = client
+                    swift_shared.is_connected = True
+
+                    # Clear previous session log
+                    swift_shared.SESSION_LOG.write_text("")
+                    swift_shared.connection_status = f"✅ Connected to {name}"
+
+                    # Keep connection alive
+                    while not swift_shared.stop_request and swift_shared.is_connected:
+                        await asyncio.sleep(1)
+
+                    # Clean disconnect
+                    await client.stop_notify(NOTIFY_UUID)
+                    await client.disconnect()
+                    swift_shared.is_connected = False
+
+                    if swift_shared.stop_request:
+                        swift_shared.connection_status = "🔴 Disconnected by user"
+                        break
+                    else:
+                        swift_shared.connection_status = "⚠️ Connection lost, retrying..."
+                        await asyncio.sleep(delay_between_attempts)
+
+                except BleakError as e:
+                    swift_shared.connection_status = f"⚠️ Attempt {attempt}, error: {str(e)}"
                     await asyncio.sleep(delay_between_attempts)
-                    continue
 
-            except BleakError as e:
-                swift_shared.connection_status = f"⚠️ Attempt {attempt}, error: {str(e)}"
-                await asyncio.sleep(delay_between_attempts)
-            except Exception as e:
-                swift_shared.connection_status = f"⚠️ Attempt {attempt}, unexpected error: {str(e)}"
-                await asyncio.sleep(delay_between_attempts)
+                except Exception as e:
+                    swift_shared.connection_status = f"⚠️ Attempt {attempt}, unexpected error: {str(e)}"
+                    await asyncio.sleep(delay_between_attempts)
 
-        swift_shared.connection_status = f"❌ Failed after {max_attempts} attempts."
-        swift_shared.is_connected = False
+            # Final status
+            if swift_shared.stop_request:
+                swift_shared.connection_status = "🔴 Disconnected by user"
+            elif not swift_shared.is_connected:
+                swift_shared.connection_status = f"❌ Failed after {max_attempts} attempts."
+
+        finally:
+            swift_shared.connecting = False
+            # DO NOT reset stop_request here — the check above needs it
+
 
     try:
         loop = asyncio.get_running_loop()
@@ -135,6 +155,7 @@ def connect_to_device():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_connect())
+
 # ------------------------------------------------------------------
 
 def decode_swift_packet(data: bytes):
