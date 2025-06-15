@@ -1,5 +1,4 @@
 # files
-.DS_Store
 __pycache__
 appsigner.py
 credentials.py
