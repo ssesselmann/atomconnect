@@ -68,5 +68,5 @@ else:
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-
+SESSION_LOG = DATA_DIR / "recording.jsonl"
 

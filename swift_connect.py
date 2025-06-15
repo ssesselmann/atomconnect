@@ -174,24 +174,15 @@ def decode_swift_packet(data: bytes):
 # ------------------------------------------------------------------
 def save_latest_data(data):
     latest_path = swift_shared.DATA_DIR / "latest_data.json"
-    recording_path = swift_shared.DATA_DIR / "recording.json"
+    session_log = swift_shared.DATA_DIR / "recording.jsonl"
 
-    # Save single latest snapshot
+    # Save snapshot for UI
     with open(latest_path, "w") as f:
         json.dump(data, f, indent=2)
 
-    # Append to recording log
-    if not recording_path.exists():
-        with open(recording_path, "w") as f:
-            json.dump([data], f, indent=2)
-    else:
-        with open(recording_path, "r+", encoding="utf-8") as f:
-            entries = json.load(f)
-            entries.append(data)
-            f.seek(0)
-            json.dump(entries, f, indent=2)
-            f.truncate()
-
+    # Append single line to session log
+    with open(session_log, "a", encoding="utf-8") as f:
+        f.write(json.dumps(data) + "\n")
 
 
 

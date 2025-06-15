@@ -234,43 +234,28 @@ class ConnectionWindow(QWidget):
         QMessageBox.information(self, "Disconnected", "The device has been disconnected.")
 
     def download_csv(self):
-
-        text = ""
+        from datetime import datetime
+        import csv
+        import json
+        from pathlib import Path
+        from PySide6.QtWidgets import QMessageBox
+        import swift_shared
 
         try:
-            # 1) locate the JSON file
-            recording_file = Path(swift_shared.DATA_DIR) / "recording.json"
+            # 1) Locate the session log
+            recording_file = swift_shared.SESSION_LOG
 
             if not recording_file.exists():
+                raise FileNotFoundError(f"No session log found at {recording_file}")
 
-                raise FileNotFoundError(f"No recording.json at {recording_file}")
+            # 2) Read and parse JSONL (line-by-line)
+            with open(recording_file, "r", encoding="utf-8") as f:
+                data = [json.loads(line) for line in f if line.strip()]
 
-            # 2) read raw text
-            text = recording_file.read_text()
+            if not data:
+                raise ValueError("No data to export.")
 
-            text = Path(swift_shared.DATA_DIR / "recording.json").read_text()
-            
-            # Replace a trailing '},' or '},]' (with optional whitespace) at end-of-file with '}]'
-            text = re.sub(r'\},\s*\]?\s*$', '}]', text)
-
-            # Make extra sure there's a closing bracket
-            text = text.rstrip()
-            if not text.endswith(']'):
-                text += ']'
-            
-            # 3) parse, with a fallback repair
-            try:
-
-                data = json.loads(text)
-
-            except JSONDecodeError as e:
-
-                logging.info(f"error: {e}")
-
-            if not isinstance(data, list) or not data:
-                raise ValueError("No data recorded.")
-
-            # 4) define your CSV columns → JSON keys
+            # 3) Define CSV columns and corresponding JSON keys
             mapping = {
                 "Timestamp"      : "time",
                 "TotalCounts"    : "counts",
@@ -282,14 +267,14 @@ class ConnectionWindow(QWidget):
             }
             headers = list(mapping.keys())
 
-            # 5) build output path
+            # 4) Output path
             out_fname = (
                 Path.home() / "Downloads" /
                 f"atom_data_{datetime.now():%Y%m%d_%H%M}.csv"
             )
-            out_fname.parent.mkdir(exist_ok=True)
+            out_fname.parent.mkdir(parents=True, exist_ok=True)
 
-            # 6) write CSV
+            # 5) Write CSV
             with open(out_fname, "w", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=headers)
                 writer.writeheader()
@@ -299,6 +284,7 @@ class ConnectionWindow(QWidget):
                         for col, json_key in mapping.items()
                     })
 
+            # 6) Notify user
             QMessageBox.information(
                 self,
                 "Download Complete",
