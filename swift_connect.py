@@ -100,7 +100,7 @@ def connect_to_device():
                     client = BleakClient(address)
                     swift_shared.is_connected = False
 
-                    if not await client.connect(timeout=10.0):
+                    if not await client.connect(timeout=40.0):
                         swift_shared.connection_status = f"❌ Attempt {attempt}: could not connect"
                         await asyncio.sleep(delay_between_attempts)
                         continue
