@@ -6,6 +6,7 @@ PySide6 >= 6.4 required (Qt Charts ships with PySide6).
 
 import json, time
 import swift_shared 
+import asyncio
 
 from swift_shared import logging
 from pathlib import Path
@@ -32,7 +33,6 @@ class DisplayWindow(QWidget):
         self.y_buf: list[float] = []  # ring-buffer of CPS values
         self.counts_buf: list[int] = []
         self.last_total_counts = 0
-
 
         # ---------- Qt Charts setup ---------------------------------
         vbox  = QVBoxLayout(self)
@@ -72,7 +72,6 @@ class DisplayWindow(QWidget):
 
         self.y_axis = QValueAxis()
         self.y_axis.setTitleText("CPS")
-        #self.y_axis.setRange(0, 10)
 
         chart.addAxis(self.x_axis, Qt.AlignBottom)
         chart.addAxis(self.y_axis, Qt.AlignLeft)
@@ -83,6 +82,26 @@ class DisplayWindow(QWidget):
         self.chart_view = QChartView(chart)
         self.chart_view.setRenderHint(QPainter.Antialiasing)
         vbox.addWidget(self.chart_view, 1)            # stretch = 1
+
+        chart.setBackgroundBrush(QColor("white"))
+        chart.setPlotAreaBackgroundBrush(QColor("white"))
+        chart.setPlotAreaBackgroundVisible(True)
+
+        self.x_axis.setLabelsBrush(QColor("black"))
+        self.y_axis.setLabelsBrush(QColor("black"))
+        self.x_axis.setTitleBrush(QColor("black"))
+        self.y_axis.setTitleBrush(QColor("black"))
+
+        self.series.setPointsVisible(True)
+        self.series.setPointLabelsVisible(False)  # optional — don't show numbers
+        self.series.setMarkerSize(2)              # optional — adjust dot size
+
+        self.series.setColor(QColor("red"))       # line color
+
+
+        pen = self.series.pen()
+        pen.setWidth(1)
+        self.series.setPen(pen)
 
         # ---------- numeric grid ------------------------------------
         fields = [
@@ -194,9 +213,18 @@ class DisplayWindow(QWidget):
         self.t_seconds += 2           # next sample time
 
     def closeEvent(self, event):
+        logging.info("[UI] Window close requested — setting shutdown flags")
+        swift_shared.stop_request       = True
+        swift_shared.shutdown_request   = True
+        swift_shared.is_connected       = False
+
         if self.on_close_callback:
             self.on_close_callback()
+
         event.accept()
+
+
+
 
 # ------------------------------------------------------------------- #
 if __name__ == "__main__":
